@@ -1,0 +1,210 @@
+#!/bin/sh
+###########################################################
+##
+##Blacklist install script
+##Call this with: blacklist [OPTION]... install pjsip|sip
+##
+##########################################################
+
+green_text(){ [[ "$bkl_color" == "always" ]] && echo -e "\e[32m$*\e[0m" || echo "$*"; }
+red_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[31m$*\e[0m" || echo "$*";}
+yellow_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[33m$*\e[0m" || echo "$*"; }
+echo_std(){ echo "${bkl_app}: $*"; }
+echo_ok(){ echo "${bkl_app}: $(green_text [OK]) $*"; }
+echo_error(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(red_text [ERROR]) $1"; }
+echo_warning(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(yellow_text [WARNING]) $1"; }
+
+copy_configs_and_blacklist() {
+  [[ ! -d "${bkl_location}/blacklist" ]] && mkdir "${bkl_location}/blacklist"
+	chmod +x ./blacklist
+	cp ./blacklist /usr/bin
+	cp -r . "${bkl_location}/blacklist"
+	cp -r "${bkl_driver}_chan"/. "${ast_etc_dir}"
+  #set blacklist dir in uninstall script
+  sed -i "s:__data_directory__:${bkl_location}/blacklist:" "${bkl_location}/blacklist/uninstall"
+  sed -i "s:__data_directory__:${bkl_location}/blacklist:" "/usr/bin/blacklist" 
+  local ast_agi_dir=$(grep astagidir "${ast_etc_dir}/asterisk.conf" | cut -d " " -f3)
+  if [[ ! -d "${ast_agi_dir}" ]]; then
+		mkdir "${ast_agi_dir}"
+  fi
+  chmod +x ./check_score.sh
+  cp ./check_score.sh "${ast_agi_dir}"
+}
+config_mmpbx() {
+	#prevents losing og config, if calling install after install
+	if [[ -f /etc/config/mmpbxrvsipnet.orig ]]; then
+		cp /etc/config/mmpbxrvsipnet.orig /etc/config/mmpbxrvsipnet
+  fi
+  local secret=$(uci get mmpbxrvsipnet.sip_profile_0.password)
+  local uri=$(uci get mmpbxrvsipnet.sip_profile_0.uri)
+  local primary_proxy=$(uci get mmpbxrvsipnet.sip_net.primary_proxy)
+  local port=$(uci get mmpbxrvsipnet.sip_net.primary_registrar_port)
+  local domain=$(uci get mmpbxrvsipnet.sip_net.domain_name)
+  local username=$(uci get mmpbxrvsipnet.sip_profile_0.user_name)    
+  sed -i "s/URI/${uri}/g;s/USERNAME/${username}/g;
+	s/SECRET/${secret}/g;s/PRIMARY_PROXY/${primary_proxy}/g;
+  s/DOMAIN/${domain}/g;s/PORT/${port}/g" "${ast_etc_dir}/${bkl_driver}.conf"
+  sed -i "s/URI/${uri}/g" "${ast_etc_dir}/extensions.conf"
+  if [[ ! -f /etc/config/mmpbxrvsipnet.orig ]]; then
+		cp /etc/config/mmpbxrvsipnet /etc/config/mmpbxrvsipnet.orig
+  fi
+  uci set mmpbxrvsipnet.sip_net.interface='lan'
+  uci set mmpbxrvsipnet.sip_net.local_port='5059'
+  uci set mmpbxrvsipnet.sip_net.primary_registrar='127.0.0.1'
+  uci set mmpbxrvsipnet.sip_net.primary_proxy='127.0.0.1'
+  uci set mmpbxrvsipnet.sip_net.user_friendly_name='Blacklist network'
+  uci commit
+  echo_warning "Registering Asterisk to mmpbx. Restarting mmpbx..."
+  /etc/init.d/mmpbxd restart
+  sleep 10
+  return 0
+}
+is_asterisk_enabled () {
+  local try=5
+  while [[ "$try" -gt 0 ]]; do
+		if pidof "asterisk" >/dev/null; then
+      echo_ok "Asterisk daemon active"
+			return 0
+		fi
+		try=$((try - 1))
+		sleep 1.5
+	done
+	echo_error "Failed to start Asterisk daemon. Aborting." && exit 1
+}
+opkg_install_asterisk () {
+  local ov=$([[ "$bkl_verbose" -eq 0 ]] && echo "-V1" || echo "-V0")
+  opkg update
+  opkg "$ov" install asterisk"${ast_short}"
+  opkg "$ov" install asterisk"${ast_short}"-app-system
+  opkg "$ov" install asterisk"${ast_short}"-res-agi
+  if [[ "$bkl_driver" == "pjsip" ]]; then
+    opkg "$ov" install asterisk"${ast_short}"-"${bkl_driver}"
+  else
+    opkg "$ov" install asterisk"${ast_short}"-chan-"${bkl_driver}"
+  fi
+  opkg "$ov" install asterisk"${ast_short}"-res-rtp-asterisk
+  opkg "$ov" install asterisk"${ast_short}"-format-pcm
+  #Added
+  opkg "$ov" install asterisk"${ast_short}"-codec-alaw
+  opkg "$ov" install asterisk"${ast_short}"-codec-ulaw
+  opkg "$ov" install asterisk"${ast_short}"-codec-a-mu
+  opkg "$ov" install asterisk"${ast_short}"-func-blacklist
+  opkg "$ov" install asterisk"${ast_short}"-func-db
+	#Add bridge modules too?
+	opkg "$ov" install asterisk"${ast_short}"-bridge-builtin-features
+	opkg "$ov" install asterisk"${ast_short}"-bridge-simple
+	opkg "$ov" install asterisk"${ast_short}"-bridge-softmix 
+	#Cdr?
+	if [[ "$bkl_nocdr" -eq 1 ]]; then
+    opkg "$ov" install asterisk"${ast_short}"-cdr
+		opkg "$ov" install asterisk"${ast_short}"-cdr-csv
+	fi
+}
+uninstall_asterisk () {
+	echo_warning "Removing Asterisk."
+	opkg remove --force-removal-of-dependent-packages "asterisk${1:0:2}"
+  type "asterisk" >/dev/null && opkg remove --force-remove "asterisk${1:0:2}"
+}
+helper_verify_aor () {
+	asterisk -x "pjsip show aor $1" | grep -qE "\Wcontact\s*:\ssip:.*:[0-9]+" 
+  if [[ "$?" -eq "1" ]]; then
+		pbx=$([[ $1 == "tel" ]] && echo "asterisk" || echo "mmpbxd")        
+    echo_warning "Contact $1 unreachable. Restarting ${pbx}..."
+    echo_warning "This may take a while......."
+    /etc/init.d/"${pbx}" restart
+    sleep 10
+    return 1
+  fi 
+  return 0
+
+}
+verify_contacts () {
+  local retry=2
+  echo_warning "Verifying whether all contacts are reachable..."
+  op () { asterisk -x "pjsip show contacts" | grep -qoE "Objects found: 2"; }
+  while [[ "${retry}" -gt 0 ]]; do
+  if ! op; then
+		echo_warning "Not all contacts are reachable"
+		retry=$(( ${retry} - 1 ))
+    helper_verify_aor tel || continue
+    helper_verify_aor "${URI}" || continue
+  else
+		echo_ok "Contacts are reachable."
+    return 0
+  fi
+  done
+  op; return $?
+}
+verify_registration () {
+    local retry=2
+    op () { asterisk -x "pjsip show registrations" | grep -q "${1}"; }
+    echo_std "Verifying Registration to Sip Provider..."
+    while [[ ${retry} -gt 0 ]]; do
+    if ! op "Registered"; then
+	    retry=$(( ${retry} - 1 ))
+    	echo_warning "Asterisk not registered to Sip Provider"
+	    echo_warning "Restarting the daemon and retrying. Please wait..."
+    	/etc/init.d/asterisk restart
+    	sleep 5
+	    asterisk -x "pjsip send register tel"
+		  sleep 5
+    else
+	    echo_ok "Asterisk is registered."
+    	return 0
+    fi
+    done
+    op "Registered"; return $?
+}
+main () {
+  #Change this to install another version of asterisk
+  local ast_ver="13.20.0"
+  if pgrep asterisk > /dev/null; then
+    /etc/init.d/asterisk stop
+  fi
+  if ! ping -c 1 google.com >/dev/null; then
+		echo_error "Aborting install. No internet connection."
+    exit 1
+  fi
+  echo_std "Installing Asterisk..."
+  local ast_short="${ast_ver:0:2}"
+	opkg_install_asterisk
+  local inst_ver=$(asterisk -V | cut -d " " -f 2)
+  if [[ "${inst_ver}" != "${ast_ver}" ]]; then
+		echo_error "Incorrect Asterisk version."
+	  uninstall_asterisk "${inst_ver}"
+    exit 1
+  else
+		echo_ok "Asterisk ${ast_short} successfully installed."
+  fi
+  local ast_etc_dir="/etc/asterisk"
+  if [[ ! -d "${ast_etc_dir}" ]]; then
+		echo_warning "Default Asterisk install directory not found."
+		ast_etc_dir=$(opkg info asterisk"${ast_short}" | grep -om 1 "/.*/asterisk.conf")
+    ast_etc_dir=${ast_etc_dir%/asterisk.conf}
+	  if [[ -z "${ast_etc_dir}" ]]; then
+			echo_error "Couldn't find Asterisk install directory. Aborting install."
+			uninstall_asterisk "${inst_ver}"
+    	exit 1
+	  fi
+	fi
+  copy_configs_and_blacklist
+  config_mmpbx
+  echo_std "Enabling Asterisk daemon..."
+  /etc/init.d/asterisk enable
+	time_stamp=$(date +'%b %d %H')
+  [[ ${time_stamp:4:1} -eq 0 ]] && time_stamp=$(echo $time_stamp | sed "s/0/ /")
+  is_asterisk_enabled  
+	#for pjsip driver, TODO sip
+  if [[ "$bkl_driver" == "pjsip" ]]; then
+    verify_registration && verify_contacts
+    if [[ "$?" -eq 1 ]] ;then 
+		  echo_error "Failed to configure the asterisk setup."
+		  echo_warning "Parsing the log..."
+      grep "\[${time_stamp}:..:..\]" /var/log/asterisk/messages
+      exit 1
+    fi
+  fi
+  echo_ok "Installation completed successfully."
+  exit 0
+}
+main "$@"

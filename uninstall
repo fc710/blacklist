@@ -1,0 +1,21 @@
+#!/bin/sh
+ast_ver_short=$(asterisk -V | cut -d '.' -f1 | cut -d ' ' -f2)
+location=__data_directory__
+/etc/init.d/asterisk stop
+/etc/init.d/asterisk disable
+
+opkg remove --autoremove --force-depends --force-removal-of-dependent-packages asterisk13*
+asterisk -V && opkg remove --force-remove asterisk13
+
+rm -rf /etc/asterisk
+rm -rf /usr/lib/asterisk
+rm -rf /usr/share/asterisk
+rm /etc/init.d/asterisk
+
+if [[ -f /etc/config/mmpbxrvsipnet.orig ]]; then
+	cp /etc/config/mmpbxrvsipnet.orig /etc/config/mmpbxrvsipnet &&
+	rm /etc/config/mmpbxrvsipnet.orig
+fi
+/etc/init.d/mmpbxd restart
+[[ -d "$location" && "$blk_keep_location" -eq 1 ]] && rm -r "$location"
+rm /usr/bin/blacklist

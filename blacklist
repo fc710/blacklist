@@ -1,0 +1,171 @@
+#!/bin/sh
+
+usage () {
+	cat <<EOM
+Usage:	$app [OPTION]... [COMMAND] [arguments...]
+	
+Commands:
+		
+	install sip|pjsip	Start the install process with the specified driver
+	uninstall		Uninstall and restore the voip config
+	block <number|file> 	Add the number (or numbers in file) to the blacklist
+	whitelist <number|file>	Add the number (or numbers in file) to the whitelist
+	show			Show the blacklisted numbers. (Use -w for the whitelist)
+	export 			Generate the list of numbers in blacklist database. (Use -w for the whitelist)
+		
+Options:
+
+	-h, --help		Display this help and exit
+	-s, --suppress-error	Suppress warnings or errors
+	-V, --version		Print version and exit
+	--no-cdr		Do not install Call Detail Record (CDR). (Valid for install command)
+	-w, --whitelist		Select the whitelist. (Valid for show/export command)
+	-l, --location=LOC	Install in LOC, default '/usr/share'. (Valid for install command)
+	--color=auto|always|no	Color certain console outputs
+	--csv			Print numbers in csv format. (Valid for export command)
+	--keep			Do not remove blacklist folder (Valid for uninstall)
+	
+EOM
+	exit 0
+}
+green_text(){ [[ "$bkl_color" == "always" ]] && echo -e "\e[32m$*\e[0m" || echo "$*"; }
+red_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[31m$*\e[0m" || echo "$*";}
+yellow_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[33m$*\e[0m" || echo "$*"; }
+echo_std(){ echo "${bkl_app}: $*"; }
+echo_ok(){ echo "${bkl_app}: $(green_text [OK]) $*"; }
+echo_error(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(red_text [ERROR]) $1"; }
+echo_warning(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(yellow_text [WARNING]) $1"; }
+
+#called inside getopts with varname opt
+arg_required() {
+	if [[ -z "$OPTARG" ]]; then 
+		echo_std "No arg for --$opt option"
+	fi
+}
+is_color_opt () {
+	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
+	{ echo_std "$1: invalid color option"; exit 1; }; }
+valid_location(){ [[ -d "$1" ]] && return 0 || 
+	{ echo_std "$1: No such directory"; exit 1; }; }
+is_running () { pidof "$1" >/dev/null ||
+	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
+is_installed(){ type "$1" >/dev/null; }
+install_checks ()  {
+	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 1; }
+	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
+		#is_installed "/usr/bin/$app" #&& 
+		is_installed "asterisk"
+		if [[ "$?" -eq 0 ]]; then
+			read  -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
+			[[ "$cnt" == "y" || "$cnt" == "Y" ]] || exit 0
+		fi
+		return 0
+	else
+		echo_std "Wrong driver \"$1\". Select 'sip' or 'pjsip." && exit 1
+	fi
+}
+uninstall_export () {
+	echo_warning "You will lose your database."
+	read -n 1 -sp "Export the database before continue [y/N] " cnt
+	[[ "$cnt" == "y" || "$cnt" == "Y" ]] && 
+	{ echo "blacklist:" >> blacklist.export; 
+	export_db "blacklist" >> blacklist.export; 
+	echo "whitelist:" >> blacklist.export;
+	export_db "whitelist" >> blacklist.export; }
+	return 0
+}
+export_db () {
+	is_running "asterisk" 
+	if [[ "$csv" -eq 1 ]]; then
+		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '
+	else
+		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
+	fi
+}
+database_op () {
+	is_running "asterisk"
+	local _db=$1
+	local user_input=$2 #number or file
+	local val="block"
+	[[ "${_db}" == "whitelist" ]] && val="ok" 
+	if [[ -f $user_input ]]; then
+#xargs -i not supported
+#grep -oE "\+[0-9]+" "$1" | xargs --no-run-if-empty -i{} asterisk -x "database put blacklist {} block"
+
+		#maybe add option to set min digits, like -m
+		grep -oE "\+?[0-9]{7,}" "$user_input" | while read -r line; do
+			asterisk -x "database put ${_db} $line $val"
+			done
+	else
+		#from user assume it's a phone number, but still check input
+		local test=$(echo $user_input | grep -oE "\+?[0-9]+")
+		if [[ "${test}" != "$user_input" ]];  then
+			echo_std "$user_input: not a valid number. " && exit 1
+		else
+			asterisk -x "database put ${_db} $test $val"
+		fi
+	fi
+
+}
+parse_args () {
+	while getopts "hsVwl:-:" opt; do
+		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
+			opt="${OPTARG%%=*}"       # extract long option name
+			OPTARG="${OPTARG#$opt}" # extract long option argument (may be empty)
+			OPTARG="${OPTARG#=}"     # if long option argument, remove assigning `=`
+		fi
+		case "${opt}" in
+			h | help)			usage;;
+			s | suppress-error)	bkl_verbose=1;;
+			V | version) 		echo "$bkl_app $bkl_version"; exit 0;;
+			no-cdr) 			bkl_nocdr=0;;
+			w | whitelist) 		db="whitelist";;
+			l | location)		arg_required && valid_location "${OPTARG}" &&
+								bkl_location="${OPTARG}";;
+			color) 				arg_required && is_color_opt "${OPTARG}" && 
+								bkl_color="${OPTARG}";;
+			csv)				csv=0;;
+			keep)				blk_keep_folder=0;;
+			# bad long option
+			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
+			# bad short opt
+			\?) 				echo_std "invalid option: -$OPTARG" && exit 1;; 
+		esac
+	done
+	shift $((OPTIND - 1))
+	local command="$1"; shift
+	case "$command" in
+		install) 	install_checks "$1" && #$1 is either sip or pjsip
+					export blk_driver="$1" && ./install
+					shift;;
+		uninstall) 	uninstall_export && "${installed_location}/uninstall";;
+		block)		database_op "blacklist" "$1"
+					shift;;
+		whitelist) 	database_op "whitelist" "$1" 
+					shift;;
+		show)		is_running "asterisk" &&
+					asterisk -x "database show $db";;
+		export) 	export_db "$db";;
+		'')			echo_std "command required" && usage;;
+		*)			echo_std "${command}: No such command" && exit 1;;
+	esac
+	return 0
+}
+
+main() {
+	export bkl_app="blacklist"
+	export bkl_version="4.0.5b"
+	export bkl_color="auto"
+	[[ $# -eq 0 ]] && usage
+	export bkl_verbose=0
+	export bkl_nocdr=1	
+	export bkl_location="/usr/share"
+	export blk_keep_folder=1
+	local installed_location=__data_directory__
+	local csv=1
+	local db="blacklist"
+	parse_args "$@"
+	local model="$(uci get env.var.prod_friendly_name)"
+	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
+}
+main "$@"
