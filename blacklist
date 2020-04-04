@@ -53,7 +53,9 @@ is_installed(){ type "$1" >/dev/null; }
 install_checks ()  {
 	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 1; }
 	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
-		#is_installed "/usr/bin/$app" #&& 
+		is_installed "/usr/bin/$app" && 
+		{ echo_error "$app: already installed. Uninstall with --keep first."
+		exit 1; }
 		is_installed "asterisk"
 		if [[ "$?" -eq 0 ]]; then
 			read  -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
