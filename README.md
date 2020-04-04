@@ -10,6 +10,7 @@ Bash scripts to install blacklist for technicolor routers (DGA4132)
   - bash is required for check_score script
   
 ## How to install:
+  Install with default settings:
   ```bash
   chmod u+x blacklist install uninstall
   ./blacklist install pjsip
