@@ -4,8 +4,8 @@ location=__data_directory__
 /etc/init.d/asterisk stop
 /etc/init.d/asterisk disable
 
-opkg remove --autoremove --force-depends --force-removal-of-dependent-packages asterisk13*
-asterisk -V && opkg remove --force-remove asterisk13
+opkg remove --autoremove --force-depends --force-removal-of-dependent-packages asterisk"${ast_ver_short}"*
+asterisk -V && opkg remove --force-remove asterisk"${ast_ver_short}"
 
 rm -rf /etc/asterisk
 rm -rf /usr/lib/asterisk
