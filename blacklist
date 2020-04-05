@@ -25,6 +25,8 @@ Options:
 	--csv			Print numbers in csv format. (Valid for export command)
 	--keep			Do not remove blacklist folder (Valid for uninstall)
 	-N, --no-interactive	Skip user interaction, includes --suppress-error
+	-m, --min-digits=MIN	Parsing number with at least MIN digits when 
+				importing from file. Default 7.(Valid for block/whitelist command)
 	
 EOM
 	exit 0
@@ -46,6 +48,7 @@ arg_required() {
 is_color_opt () {
 	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
 	{ echo_std "$1: invalid color option"; exit 1; }; }
+is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; exit 1; }; }
 valid_location(){ [[ -d "$1" ]] && return 0 || 
 	{ echo_std "$1: No such directory"; exit 1; }; }
 is_running () { pidof "$1" >/dev/null ||
@@ -80,12 +83,14 @@ uninstall_export () {
 export_db () {
 	is_running "asterisk" 
 	if [[ "$csv" -eq 1 ]]; then
-		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '
+		asterisk -x "database show $1" | head -n-1 |
+		cut -f 3 -d '/' | cut -f 1 -d ' '
 	else
-		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
+		asterisk -x "database show $1" | head -n-1 |
+		cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
 	fi
 }
-database_op () {
+database_insert () {
 	is_running "asterisk"
 	local _db=$1
 	local user_input=$2 #number or file
@@ -96,7 +101,7 @@ database_op () {
 #grep -oE "\+[0-9]+" "$1" | xargs --no-run-if-empty -i{} asterisk -x "database put blacklist {} block"
 
 		#maybe add option to set min digits, like -m
-		grep -oE "\+?[0-9]{7,}" "$user_input" | while read -r line; do
+		grep -oE "\+?[0-9]{$min_digits,}" "$user_input" | while read -r line; do
 			asterisk -x "database put ${_db} $line $val"
 			done
 	else
@@ -111,7 +116,7 @@ database_op () {
 
 }
 parse_args () {
-	while getopts ":hsVwl:N-:" opt; do
+	while getopts ":hsVwm:l:N-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
 			OPTARG="${OPTARG#$opt}" # extract long option argument (may be empty)
@@ -130,6 +135,8 @@ parse_args () {
 			csv)				csv=0;;
 			keep)				blk_keep_folder=0;;
 			N | no-interactive)	blk_interactive=1;bkl_verbose=1;;
+			m | min-digits)		arg_required && is_digit "${OPTARG}" &&
+								min_digits="${OPTARG}";;
 			# bad long option
 			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
 			# bad short opt
@@ -137,7 +144,8 @@ parse_args () {
 		esac
 	done
 	shift $((OPTIND - 1))
-	local command="$1"; shift
+	local command="$1"; 
+	[[ -n "$command" ]] && shift
 	case "$command" in
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
 					export blk_driver="$1" && ./install
@@ -146,7 +154,7 @@ parse_args () {
 					"${installed_location}/uninstall";;
 		block)		database_op "blacklist" "$1"
 					shift;;
-		whitelist) 	database_op "whitelist" "$1" 
+		whitelist) 	database_insert "whitelist" "$1"# ""
 					shift;;
 		show)		is_running "asterisk" &&
 					asterisk -x "database show $db";;
@@ -171,6 +179,7 @@ main() {
 	local installed_location=__data_directory__
 	local csv=1
 	local db="blacklist"
+	local min_digits=7
 	parse_args "$@"
 	local model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
