@@ -7,7 +7,7 @@ Usage:	$app [OPTION]... [COMMAND] [arguments...]
 Commands:
 		
 	install sip|pjsip	Start the install process with the specified driver
-	uninstall		Uninstall and restore the voip config
+	uninstall		Uninstall and restore the mmpbx config
 	block <number|file> 	Add the number (or numbers in file) to the blacklist
 	whitelist <number|file>	Add the number (or numbers in file) to the whitelist
 	show			Show the blacklisted numbers. (Use -w for the whitelist)
@@ -24,6 +24,7 @@ Options:
 	--color=auto|always|no	Color certain console outputs
 	--csv			Print numbers in csv format. (Valid for export command)
 	--keep			Do not remove blacklist folder (Valid for uninstall)
+	-N, --no-interactive	Skip user interaction, includes --suppress-error
 	
 EOM
 	exit 0
@@ -57,7 +58,7 @@ install_checks ()  {
 		{ echo_error "$app: already installed. Uninstall with --keep first."
 		exit 1; }
 		is_installed "asterisk"
-		if [[ "$?" -eq 0 ]]; then
+		if [[ "$interactive" -eq 0 && "$?" -eq 0 ]]; then
 			read  -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
 			[[ "$cnt" == "y" || "$cnt" == "Y" ]] || exit 0
 		fi
@@ -110,7 +111,7 @@ database_op () {
 
 }
 parse_args () {
-	while getopts ":hsVwl:-:" opt; do
+	while getopts ":hsVwlN:-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
 			OPTARG="${OPTARG#$opt}" # extract long option argument (may be empty)
@@ -128,6 +129,7 @@ parse_args () {
 								bkl_color="${OPTARG}";;
 			csv)				csv=0;;
 			keep)				blk_keep_folder=0;;
+			N | no-interactive)	interactive=1;bkl_verbose=1;;
 			# bad long option
 			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
 			# bad short opt
@@ -140,7 +142,8 @@ parse_args () {
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
 					export blk_driver="$1" && ./install
 					shift;;
-		uninstall) 	uninstall_export && "${installed_location}/uninstall";;
+		uninstall) 	[[ "$interactive" -eq 0 ]] && uninstall_export
+					"${installed_location}/uninstall";;
 		block)		database_op "blacklist" "$1"
 					shift;;
 		whitelist) 	database_op "whitelist" "$1" 
@@ -155,6 +158,7 @@ parse_args () {
 }
 
 main() {
+	# 0 is true in bash
 	export bkl_app="blacklist"
 	export bkl_version="4.0.5b"
 	export bkl_color="auto"
@@ -166,6 +170,7 @@ main() {
 	local installed_location=__data_directory__
 	local csv=1
 	local db="blacklist"
+	local interactive=0
 	parse_args "$@"
 	local model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
