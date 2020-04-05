@@ -5,10 +5,11 @@
 ##Call this with: blacklist [OPTION]... install pjsip|sip
 ##
 ##########################################################
-
-green_text(){ [[ "$bkl_color" == "always" ]] && echo -e "\e[32m$*\e[0m" || echo "$*"; }
+green_text(){ [[ "$blk_color" != "no" && "$bkl_color" == "always" ]] && 
+	echo -e "\e[32m$*\e[0m" || echo "$*"; }
 red_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[31m$*\e[0m" || echo "$*";}
-yellow_text(){ [[ "$bkl_color" != "no" ]] && echo -e "\e[33m$*\e[0m" || echo "$*"; }
+yellow_text(){ [[ "$blk_color" != "no" && "$bkl_color" == "always" ]] && 
+	echo -e "\e[33m$*\e[0m" || echo "$*"; }
 echo_std(){ echo "${bkl_app}: $*"; }
 echo_ok(){ echo "${bkl_app}: $(green_text [OK]) $*"; }
 echo_error(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(red_text [ERROR]) $1"; }
