@@ -58,7 +58,7 @@ install_checks ()  {
 		{ echo_error "$app: already installed. Uninstall with --keep first."
 		exit 1; }
 		is_installed "asterisk"
-		if [[ "$interactive" -eq 0 && "$?" -eq 0 ]]; then
+		if [[ "$blk_interactive" -eq 0 && "$?" -eq 0 ]]; then
 			read  -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
 			[[ "$cnt" == "y" || "$cnt" == "Y" ]] || exit 0
 		fi
@@ -129,7 +129,7 @@ parse_args () {
 								bkl_color="${OPTARG}";;
 			csv)				csv=0;;
 			keep)				blk_keep_folder=0;;
-			N | no-interactive)	interactive=1;bkl_verbose=1;;
+			N | no-interactive)	blk_interactive=1;bkl_verbose=1;;
 			# bad long option
 			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
 			# bad short opt
@@ -142,7 +142,7 @@ parse_args () {
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
 					export blk_driver="$1" && ./install
 					shift;;
-		uninstall) 	[[ "$interactive" -eq 0 ]] && uninstall_export
+		uninstall) 	[[ "$blk_interactive" -eq 0 ]] && uninstall_export
 					"${installed_location}/uninstall";;
 		block)		database_op "blacklist" "$1"
 					shift;;
@@ -167,10 +167,10 @@ main() {
 	export bkl_nocdr=1	
 	export bkl_location="/usr/share"
 	export blk_keep_folder=1
+	export blk_interactive=0
 	local installed_location=__data_directory__
 	local csv=1
 	local db="blacklist"
-	local interactive=0
 	parse_args "$@"
 	local model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"

@@ -29,13 +29,14 @@ copy_configs_and_blacklist() {
   chmod u+x ./check_score.sh
   cp ./check_score.sh "${ast_agi_dir}"
 }
-#TODO
+#not assuming active profile is the first option: 0
 select_profile(){  
   local count_profile=0
   local indexes=""
   for i in $(seq 0 5);do
-    local enabled=$(uci -q get mmpbxrvsipnet_sip_profile_$i.enabled) || break
-    local net=$(uci -q get mmpbxrvsipnet_sip_profile_$i.network)
+    #local eats the exit code
+    local enabled; enabled=$(uci -q get mmpbxrvsipnet.sip_profile_$i.enabled)|| break
+    local net=$(uci -q get mmpbxrvsipnet.sip_profile_$i.network)
     if [[ "$enabled" -eq 1 && "$net" == "sip_net" ]]; then
       count_profile=$((count_profile + 1))
       indexes="$indexes $i"
@@ -45,24 +46,37 @@ select_profile(){
     echo "$indexes"
     return 0
   elif [[ "$count_profile" -eq 0 ]]; then
-    return 1
+    echo_error "No profile available, aborting"; exit 1
   else
-    echo ""
-
-
+    #echo "$indexes"| xargs -n1 -i{} "uci -q get mmpbxrvsipnet_sip_profile_{}.uri"
+    #alternative to xargs -i
+    print_uri() {
+      while [[ "$#" -gt 0 ]]; do
+        echo "$1: $(uci -q get mmpbxrvsipnet.sip_profile_$1.uri)"
+        shift
+      done
+    }
+    if [[ "$blk_interactive" -eq 0 ]]; then
+      read -n1 -sp "Multiple profiles available: select [$indexes]"$'\n'"$(print_uri $indexes)"$'\n' ind
+      [[ "$ind" -ge 0 && "$ind" -lt "$count_profile" ]] && echo "$ind" || 
+      { echo_error "Invalid profile. Cannot config mmpbx, aborting"; exit 1; }
+    else
+      echo ${indexes:0:1} #non interactive picks first choice
+    fi
+  fi
 }
 config_mmpbx() {
 	#prevents losing og config, if calling install after install
 	if [[ -f /etc/config/mmpbxrvsipnet.orig ]]; then
 		cp /etc/config/mmpbxrvsipnet.orig /etc/config/mmpbxrvsipnet
   fi
-
-  local secret=$(uci get mmpbxrvsipnet.sip_profile_0.password)
-  local uri=$(uci get mmpbxrvsipnet.sip_profile_0.uri)
+  local profile_idx=$(select_profile)
+  local secret=$(uci get mmpbxrvsipnet.sip_profile_$profile_idx.password)
+  local uri=$(uci get mmpbxrvsipnet.sip_profile_$profile_idx.uri)
+  local username=$(uci get mmpbxrvsipnet.sip_profile_$profile_idx.user_name)    
   local primary_proxy=$(uci get mmpbxrvsipnet.sip_net.primary_proxy)
   local port=$(uci get mmpbxrvsipnet.sip_net.primary_registrar_port)
   local domain=$(uci get mmpbxrvsipnet.sip_net.domain_name)
-  local username=$(uci get mmpbxrvsipnet.sip_profile_0.user_name)    
   sed -i "s/URI/${uri}/g;s/USERNAME/${username}/g;
 	s/SECRET/${secret}/g;s/PRIMARY_PROXY/${primary_proxy}/g;
   s/DOMAIN/${domain}/g;s/PORT/${port}/g" "${ast_etc_dir}/${bkl_driver}.conf"
