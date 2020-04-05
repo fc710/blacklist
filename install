@@ -99,6 +99,8 @@ opkg_install_asterisk () {
     opkg "$ov" install asterisk"${ast_short}"-cdr
 		opkg "$ov" install asterisk"${ast_short}"-cdr-csv
 	fi
+  #temporary
+  opkg "$ov" install bash
 }
 uninstall_asterisk () {
 	echo_warning "Removing Asterisk."
