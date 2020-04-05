@@ -24,7 +24,8 @@ Options:
 	--color=auto|always|no	Color certain console outputs
 	--csv			Print numbers in csv format. (Valid for export command)
 	--keep			Do not remove blacklist folder (Valid for uninstall)
-	-m, --min-digits=MIN	Parsing number with at least MIN digits when importing from file.
+	-m, --min-digits=MIN	Parsing number with at least MIN digits when 
+				importing from file. Default 7.(Valid for block/whitelist command)
 	
 EOM
 	exit 0
@@ -81,9 +82,11 @@ uninstall_export () {
 export_db () {
 	is_running "asterisk" 
 	if [[ "$csv" -eq 1 ]]; then
-		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '
+		asterisk -x "database show $1" | head -n-1 |
+		cut -f 3 -d '/' | cut -f 1 -d ' '
 	else
-		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
+		asterisk -x "database show $1" | head -n-1 |
+		cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
 	fi
 }
 database_insert () {
@@ -97,7 +100,7 @@ database_insert () {
 #grep -oE "\+[0-9]+" "$1" | xargs --no-run-if-empty -i{} asterisk -x "database put blacklist {} block"
 
 		#maybe add option to set min digits, like -m
-		grep -oE "\+?[0-9]{7,}" "$user_input" | while read -r line; do
+		grep -oE "\+?[0-9]{$min_digits,}" "$user_input" | while read -r line; do
 			asterisk -x "database put ${_db} $line $val"
 			done
 	else
@@ -146,9 +149,9 @@ parse_args () {
 					export blk_driver="$1" && ./install
 					shift;;
 		uninstall) 	uninstall_export && "${installed_location}/uninstall";;
-		block)		database_insert "blacklist" "$1"
+		block)		database_insert "blacklist" "$1"#$1 is the user input
 					shift;;
-		whitelist) 	database_insert "whitelist" "$1" 
+		whitelist) 	database_insert "whitelist" "$1"# ""
 					shift;;
 		show)		is_running "asterisk" &&
 					asterisk -x "database show $db";;
