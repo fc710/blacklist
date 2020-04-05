@@ -111,7 +111,7 @@ database_op () {
 
 }
 parse_args () {
-	while getopts ":hsVwlN:-:" opt; do
+	while getopts ":hsVwl:N-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
 			OPTARG="${OPTARG#$opt}" # extract long option argument (may be empty)
