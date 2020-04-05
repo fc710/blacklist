@@ -158,6 +158,7 @@ verify_registration () {
 main () {
   #Change this to install another version of asterisk
   local ast_ver="13.20.0"
+  [[ -z "$blk_app" ]] && { echo_error "Launch with blacklist!" && exit 1; }
   if pgrep asterisk > /dev/null; then
     /etc/init.d/asterisk stop
   fi
