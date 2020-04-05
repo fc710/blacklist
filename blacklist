@@ -24,6 +24,7 @@ Options:
 	--color=auto|always|no	Color certain console outputs
 	--csv			Print numbers in csv format. (Valid for export command)
 	--keep			Do not remove blacklist folder (Valid for uninstall)
+	-m, --min-digits=MIN	Parsing number with at least MIN digits when importing from file.
 	
 EOM
 	exit 0
@@ -45,6 +46,7 @@ arg_required() {
 is_color_opt () {
 	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
 	{ echo_std "$1: invalid color option"; exit 1; }; }
+is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; exit 1; }; }
 valid_location(){ [[ -d "$1" ]] && return 0 || 
 	{ echo_std "$1: No such directory"; exit 1; }; }
 is_running () { pidof "$1" >/dev/null ||
@@ -84,7 +86,7 @@ export_db () {
 		asterisk -x "database show $1" | head -n-1| cut -f 3 -d '/' | cut -f 1 -d ' '| xargs | tr ' ' ','
 	fi
 }
-database_op () {
+database_insert () {
 	is_running "asterisk"
 	local _db=$1
 	local user_input=$2 #number or file
@@ -110,7 +112,7 @@ database_op () {
 
 }
 parse_args () {
-	while getopts "hsVwl:-:" opt; do
+	while getopts "hsVwm:l:-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
 			OPTARG="${OPTARG#$opt}" # extract long option argument (may be empty)
@@ -128,6 +130,8 @@ parse_args () {
 								bkl_color="${OPTARG}";;
 			csv)				csv=0;;
 			keep)				blk_keep_folder=0;;
+			m | min-digits)		arg_required && is_digit "${OPTARG}" &&
+								min_digits="${OPTARG}";;
 			# bad long option
 			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
 			# bad short opt
@@ -135,15 +139,16 @@ parse_args () {
 		esac
 	done
 	shift $((OPTIND - 1))
-	local command="$1"; shift
+	local command="$1"; 
+	[[ -n "$command" ]] && shift
 	case "$command" in
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
 					export blk_driver="$1" && ./install
 					shift;;
 		uninstall) 	uninstall_export && "${installed_location}/uninstall";;
-		block)		database_op "blacklist" "$1"
+		block)		database_insert "blacklist" "$1"
 					shift;;
-		whitelist) 	database_op "whitelist" "$1" 
+		whitelist) 	database_insert "whitelist" "$1" 
 					shift;;
 		show)		is_running "asterisk" &&
 					asterisk -x "database show $db";;
@@ -166,6 +171,7 @@ main() {
 	local installed_location=__data_directory__
 	local csv=1
 	local db="blacklist"
+	local min_digits=7
 	parse_args "$@"
 	local model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
