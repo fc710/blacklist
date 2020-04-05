@@ -16,7 +16,7 @@ echo_warning(){ [[ $bkl_verbose -eq 0 ]] && >&2 echo "${bkl_app}: $(yellow_text 
 
 copy_configs_and_blacklist() {
   [[ ! -d "${bkl_location}/blacklist" ]] && mkdir "${bkl_location}/blacklist"
-	chmod +x ./blacklist
+	chmod u+x ./blacklist
 	cp ./blacklist /usr/bin
 	cp -r . "${bkl_location}/blacklist"
 	cp -r "${bkl_driver}_chan"/. "${ast_etc_dir}"
@@ -27,14 +27,37 @@ copy_configs_and_blacklist() {
   if [[ ! -d "${ast_agi_dir}" ]]; then
 		mkdir "${ast_agi_dir}"
   fi
-  chmod +x ./check_score.sh
+  chmod u+x ./check_score.sh
   cp ./check_score.sh "${ast_agi_dir}"
+}
+#TODO
+select_profile(){  
+  local count_profile=0
+  local indexes=""
+  for i in $(seq 0 5);do
+    local enabled=$(uci -q get mmpbxrvsipnet_sip_profile_$i.enabled) || break
+    local net=$(uci -q get mmpbxrvsipnet_sip_profile_$i.network)
+    if [[ "$enabled" -eq 1 && "$net" == "sip_net" ]]; then
+      count_profile=$((count_profile + 1))
+      indexes="$indexes $i"
+    fi
+  done
+  if [[ "$count_profile" -eq 1 ]]; then
+    echo "$indexes"
+    return 0
+  elif [[ "$count_profile" -eq 0 ]]; then
+    return 1
+  else
+    echo ""
+
+
 }
 config_mmpbx() {
 	#prevents losing og config, if calling install after install
 	if [[ -f /etc/config/mmpbxrvsipnet.orig ]]; then
 		cp /etc/config/mmpbxrvsipnet.orig /etc/config/mmpbxrvsipnet
   fi
+
   local secret=$(uci get mmpbxrvsipnet.sip_profile_0.password)
   local uri=$(uci get mmpbxrvsipnet.sip_profile_0.uri)
   local primary_proxy=$(uci get mmpbxrvsipnet.sip_net.primary_proxy)
@@ -192,6 +215,8 @@ main () {
 	fi
   copy_configs_and_blacklist
   config_mmpbx
+  uci set modgui.app.blacklist_app='1'
+  uci commit
   echo_std "Enabling Asterisk daemon..."
   /etc/init.d/asterisk enable
 	time_stamp=$(date +'%b %d %H')

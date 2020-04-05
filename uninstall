@@ -16,6 +16,8 @@ if [[ -f /etc/config/mmpbxrvsipnet.orig ]]; then
 	cp /etc/config/mmpbxrvsipnet.orig /etc/config/mmpbxrvsipnet &&
 	rm /etc/config/mmpbxrvsipnet.orig
 fi
+uci set modgui.app.blacklist_app='0'
+uci commit
 /etc/init.d/mmpbxd restart
 [[ -d "$location" && "$blk_keep_location" -eq 1 ]] && rm -r "$location"
 rm /usr/bin/blacklist
