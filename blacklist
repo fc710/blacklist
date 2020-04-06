@@ -152,7 +152,7 @@ parse_args () {
 					"${installed_location}/uninstall" "$installed_location";;
 		block)		database_op "blacklist" "$1"
 					shift;;
-		whitelist) 	database_insert "whitelist" "$1"# ""
+		whitelist) 	database_insert "whitelist" "$1" #""
 					shift;;
 		show)		is_running "asterisk" &&
 					asterisk -x "database show $db";;
@@ -166,7 +166,7 @@ parse_args () {
 main() {
 	# 0 is true in bash
 	export BKL_APP="blacklist"
-	export BKL_VERSION="4.1.12-alpha"
+	export BKL_VERSION="4.1.14-alpha"
 	export BKL_COLOR="auto"
 	[[ $# -eq 0 ]] && usage
 	export BKL_VERBOSE=0
