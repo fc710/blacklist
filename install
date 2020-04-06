@@ -62,8 +62,11 @@ select_profile(){
     if [[ "$BKL_INTERACTIVE" -eq 0 ]]; then
       #don't add quotes to indexes to allow whitespace separation
       read -n1 -sp "Multiple profiles available: select [$indexes]"$'\n'"$(print_uri $indexes)"$'\n' ind
-      [[ $ind -ge 0 && $ind -lt $count_profile ]] && echo "$ind" || 
-      { echo_error "Invalid profile. Cannot config mmpbx, aborting"; exit 1; }
+      if [[ $ind -ge 0 && $ind -lt $count_profile ]]; then 
+        echo "$ind"
+      else 
+        echo_error "Invalid profile. Cannot config mmpbx, aborting"; exit 1
+      fi
     else
       echo "${indexes:0:1}" #non interactive picks first choice
     fi
