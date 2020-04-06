@@ -22,7 +22,8 @@ copy_configs_and_blacklist() {
 	cp -r "${BKL_DRIVER}_chan"/. "${ast_etc_dir}"
   #set blacklist dir in uninstall script
   sed -i "s:__data_directory__:${BKL_LOCATION}/blacklist:" "/usr/bin/blacklist" 
-  local ast_agi_dir; ast_agi_dir=$(grep astagidir "${ast_etc_dir}/asterisk.conf" | cut -d " " -f3)
+  local ast_agi_dir
+  ast_agi_dir=$(grep astagidir "${ast_etc_dir}/asterisk.conf" | cut -d " " -f3)
   if [[ ! -d "${ast_agi_dir}" ]]; then
 		mkdir "${ast_agi_dir}"
   fi
@@ -44,7 +45,7 @@ select_profile(){
     fi
   done
   if [[ "$count_profile" -eq 1 ]]; then
-    echo "$indexes"
+    echo "${indexes## }"
     return 0
   elif [[ "$count_profile" -eq 0 ]]; then
     echo_error "No profile available, aborting"; exit 1
@@ -52,14 +53,15 @@ select_profile(){
     #echo "$indexes"| xargs -n1 -i{} "uci -q get mmpbxrvsipnet_sip_profile_{}.uri"
     #alternative to xargs -i
     print_uri() {
-      while [[ "$#" -gt 0 ]]; do
+      while [[ $# -gt 0 ]]; do
         echo "$1: $(uci -q get mmpbxrvsipnet.sip_profile_"$1".uri)"
         shift
       done
     }
     if [[ "$BKL_INTERACTIVE" -eq 0 ]]; then
-      read -n1 -sp "Multiple profiles available: select [$indexes]"$'\n'"$(print_uri "$indexes")"$'\n' ind
-      [[ "$ind" -ge 0 && "$ind" -lt "$count_profile" ]] && echo "$ind" || 
+      #don't add quotes to indexes to allow whitespace separation
+      read -n1 -sp "Multiple profiles available: select [$indexes]"$'\n'"$(print_uri $indexes)"$'\n' ind
+      [[ $ind -ge 0 && $ind -lt $count_profile ]] && echo "$ind" || 
       { echo_error "Invalid profile. Cannot config mmpbx, aborting"; exit 1; }
     else
       echo "${indexes:0:1}" #non interactive picks first choice
@@ -181,7 +183,7 @@ verify_registration () {
     echo_std "Verifying Registration to Sip Provider..."
     while [[ ${retry} -gt 0 ]]; do
     if ! op "Registered"; then
-	    retry=$(( ${retry} - 1 ))
+	    retry=$((retry - 1))
     	echo_warning "Asterisk not registered to Sip Provider"
 	    echo_warning "Restarting the daemon and retrying. Please wait..."
     	/etc/init.d/asterisk restart
