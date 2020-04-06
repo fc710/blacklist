@@ -44,8 +44,9 @@ select_profile(){
       indexes="$indexes $i"
     fi
   done
+  indexes=${indexes## }
   if [[ "$count_profile" -eq 1 ]]; then
-    echo "${indexes## }"
+    echo "$indexes"
     return 0
   elif [[ "$count_profile" -eq 0 ]]; then
     echo_error "No profile available, aborting"; exit 1
