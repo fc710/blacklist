@@ -4,7 +4,7 @@ while read VAR ; do
 if [[ -n ${VAR} ]]; then
 	break
 fi
-	if [ ${VAR:0:13} = "agi_callerid:" ]; then
+	if [ "${VAR:0:13}" = "agi_callerid:" ]; then
 		caller_num=${VAR:14}
 	fi
 done
@@ -19,9 +19,9 @@ if ! [[ $caller_num =~ $re ]]; then
     exit 1
 fi
 #echo "Calling number read in script : $caller_num" 
-score_page=$(curl -sm 3 https://www.tellows.it/num/$caller_num)
+score_page=$(curl -sm 3 https://www.tellows.it/num/"$caller_num")
 #score=$(echo $score_page | grep -oP "(?<=:\sScore\s)\d")
-score=$(echo $score_page | grep -oE "alt=\"tellows Valutazione per.*[[:space:]]Score[[:space:]][[:digit:]]\"")
+score=$(echo "$score_page" | grep -oE "alt=\"tellows Valutazione per.*[[:space:]]Score[[:space:]][[:digit:]]\"")
 #bash only
 score=${score: -2:1}
 #ash variant

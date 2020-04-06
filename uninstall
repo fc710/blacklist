@@ -1,6 +1,7 @@
 #!/bin/sh
+# shellcheck disable=SC2039
 ast_ver_short=$(asterisk -V | cut -d '.' -f1 | cut -d ' ' -f2)
-location=__data_directory__
+local location="$1"
 /etc/init.d/asterisk stop
 /etc/init.d/asterisk disable
 
@@ -19,5 +20,5 @@ fi
 uci set modgui.app.blacklist_app='0'
 uci commit
 /etc/init.d/mmpbxd restart
-[[ -d "$location" && "$blk_keep_location" -eq 1 ]] && rm -r "$location"
+[[ -d "$location" && "$BKL_KEEP_LOCATION" -eq 1 ]] && rm -r "$location"
 rm /usr/bin/blacklist
