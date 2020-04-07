@@ -149,7 +149,7 @@ opkg_install_asterisk () {
 uninstall_asterisk () {
 	echo_warning "Removing Asterisk."
 	opkg remove --autoremove --force-depends --force-removal-of-dependent-packages "asterisk${1:0:2}*"
-  type "asterisk" >/dev/null && opkg remove --force-remove "asterisk${1:0:2}"
+  asterisk -V && opkg remove --force-remove "asterisk${1:0:2}"
 }
 helper_verify_aor () {
 	asterisk -x "pjsip show aor $1" | grep -qE "\Wcontact\s*:\ssip:.*:[0-9]+" 
