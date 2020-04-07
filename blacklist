@@ -164,7 +164,7 @@ parse_args () {
 main() {
 	# 0 is true in bash
 	export BKL_APP="blacklist"
-	export BKL_VERSION="4.1.14-alpha"
+	export BKL_VERSION="4.1.17-alpha"
 	export BKL_COLOR="auto"
 	[[ $# -eq 0 ]] && usage
 	export BKL_VERBOSE=0
