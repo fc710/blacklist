@@ -149,9 +149,11 @@ parse_args () {
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
 					export BKL_DRIVER="$1" && ./install
 					shift;;
-		uninstall) 	[[ "$BKL_INTERACTIVE" -eq 0 ]] && uninstall_export
+		uninstall) 	is_installed /usr/bin/"$BKL_APP" ||
+					{ echo_std "Nothing to uninstall."; exit 1; }
+					[[ "$BKL_INTERACTIVE" -eq 0 ]] && uninstall_export
 					"${installed_location}/uninstall" "$installed_location";;
-		block)		database_op "blacklist" "$1"
+		block)		database_insert "blacklist" "$1"
 					shift;;
 		whitelist) 	database_insert "whitelist" "$1" #""
 					shift;;
@@ -166,6 +168,7 @@ parse_args () {
 
 main() {
 	# 0 is true in bash
+	#set -euo pipefail
 	export BKL_APP="blacklist"
 	export BKL_VERSION="4.1.17-alpha"
 	export BKL_COLOR="auto"
