@@ -61,6 +61,7 @@ select_profile(){
     }
     if [[ "$BKL_INTERACTIVE" -eq 0 ]]; then
       #don't add quotes to indexes to allow whitespace separation
+      # shellcheck disable=SC2086
       read -n1 -sp "Multiple profiles available: select [$indexes]"$'\n'"$(print_uri $indexes)"$'\n' ind
       if [[ $ind -ge 0 && $ind -lt $count_profile ]]; then 
         echo "$ind"

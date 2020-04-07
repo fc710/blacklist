@@ -53,9 +53,12 @@ valid_location(){ [[ -d "$1" ]] && return 0 ||
 	{ echo_std "$1: No such directory"; exit 1; }; }
 is_running () { pidof "$1" >/dev/null ||
 	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
-is_installed(){ type "$1" >/dev/null; }
+#type can be inconsistent
+is_installed(){ "$1" -V >/dev/null; }
 install_checks ()  {
 	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 1; }
+  	[[ ! -f "/etc/config/mmpbxrvsipnet" ]] &&
+	{ echo_error "mmpbxrvsipnet not found!"; exit 1; }
 	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
 		is_installed "/usr/bin/$BKL_APP" && 
 		{ echo_error "$BKL_APP: already installed. Uninstall with --keep first."
