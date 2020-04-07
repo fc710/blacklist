@@ -20,7 +20,7 @@ copy_configs_and_blacklist() {
 	cp ./blacklist /usr/bin
 	cp -r . "${BKL_LOCATION}/blacklist"
 	cp -r "${BKL_DRIVER}_chan"/. "${ast_etc_dir}"
-  #set blacklist dir in uninstall script
+  #set blacklist dir to locate uninstall script
   sed -i "s:__data_directory__:${BKL_LOCATION}/blacklist:" "/usr/bin/blacklist" 
   local ast_agi_dir
   ast_agi_dir=$(grep astagidir "${ast_etc_dir}/asterisk.conf" | cut -d " " -f3)
@@ -240,16 +240,16 @@ main () {
   uci commit
   echo_std "Enabling Asterisk daemon..."
   /etc/init.d/asterisk enable
-	time_stamp=$(date +'%b %d %H')
+	time_stamp=$(date +'%b %d %H:%M')
   [[ ${time_stamp:4:1} -eq 0 ]] && time_stamp=$(echo "$time_stamp" | sed "s/0/ /")
   is_asterisk_enabled  
-	#for pjsip driver, TODO sip
+	#optional checks for pjsip driver, TODO sip
   if [[ "$BKL_DRIVER" == "pjsip" ]]; then
     verify_registration && verify_contacts
     if [[ "$?" -eq 1 ]] ;then 
 		  echo_error "Failed to configure the asterisk setup."
-		  echo_warning "Parsing the log..."
-      grep "\[${time_stamp}:..:..\]" /var/log/asterisk/messages
+		  echo_warning "Parsing the log, check asterisk.log"
+      sed -n "/\[${time_stamp}:..\]/,$ p" /var/log/asterisk/messages >> asterisk.log
       exit 1
     fi
   fi
