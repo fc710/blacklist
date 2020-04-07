@@ -96,8 +96,6 @@ database_insert () {
 	if [[ -f $user_input ]]; then
 #xargs -i not supported
 #grep -oE "\+[0-9]+" "$1" | xargs --no-run-if-empty -i{} asterisk -x "database put blacklist {} block"
-
-		#maybe add option to set min digits, like -m
 		grep -oE "\+?[0-9]{$min_digits,}" "$user_input" | while read -r line; do
 			asterisk -x "database put ${_db} $line $val"
 			done

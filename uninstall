@@ -20,5 +20,5 @@ fi
 uci set modgui.app.blacklist_app='0'
 uci commit
 /etc/init.d/mmpbxd restart
-[[ -d "$location" && "$BKL_KEEP_LOCATION" -eq 1 ]] && rm -r "$location"
+[[ -d "$location" && -z "${location%%*/blacklist}" && "$BKL_KEEP_LOCATION" -eq 1 ]] && rm -r "$location"
 rm /usr/bin/blacklist
