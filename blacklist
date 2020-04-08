@@ -37,7 +37,8 @@ yellow_text(){ [[ "$BKL_COLOR" == "always" ]] && echo -e "\e[33m$*\e[0m" || echo
 echo_std(){ echo "${BKL_APP}: $*"; }
 echo_ok(){ [[ $BKL_VERBOSE -eq 0 ]] && echo "${BKL_APP}: $(green_text [OK]) $*"; }
 echo_error(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(red_text [ERROR]) $1"; }
-echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
+echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] &&
+    >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
 
 
 is_color_opt () {
@@ -56,10 +57,14 @@ install_checks ()  {
 	{ echo_error "mmpbxrvsipnet not found!"; exit 1; }
 	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
 		is_installed "/usr/bin/$BKL_APP" &&
-		{ echo_error "$BKL_APP: already installed. Uninstall with --keep first."
-		exit 1; }
+		{ echo_error "$BKL_APP: already installed."; exit 1; }
+	    [[ "$(uci get env.var.prod_friendly_name)" != "DGA4132" ]] &&
+            echo_warning "This script was tested only on DGA4132!"
+        local isp; isp=$(uci get modgui.var.isp)
+        [[ "$isp" != "TIM" ]] &&
+            echo_warning "Config files untested for $isp"
 		if is_installed "asterisk" && [[ "$BKL_INTERACTIVE" -eq 0 ]]; then
-			read  -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
+			read -n 1 -sp "asterisk already installed. Do you wish to continue [y/N] " cnt
 			[[ "$cnt" == "y" || "$cnt" == "Y" ]] || exit 0
 		fi
 		return 0
@@ -109,7 +114,6 @@ database_insert () {
 
 }
 parse_args () {
-	#called inside getopts with varname opt
 	arg_required() {
 		if [[ -z "$OPTARG" ]]; then
 			echo_std "--$opt: arg required"; return 1
@@ -117,7 +121,7 @@ parse_args () {
 			return 0
 		fi
 		}
-			# shellcheck disable=SC2214
+	# shellcheck disable=SC2214
 	while getopts ":hsVwm:l:N-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
@@ -190,7 +194,5 @@ main() {
 	local db="blacklist"
 	local min_digits=7
 	parse_args "$@"
-	local model; model="$(uci get env.var.prod_friendly_name)"
-	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
 }
 main "$@"
