@@ -114,14 +114,14 @@ is_asterisk_enabled () {
 		try=$((try - 1))
 		sleep 1.5
 	done
-	echo_error "Failed to start Asterisk daemon. Aborting."
+	echo_error "Failed to start Asterisk daemon."
   return 1
 }
 parse_asterisk_log() {
 	echo_error "Failed to configure asterisk. "
 	echo_warning "Parsing the log, check asterisk.log"
   sed -n "/\[${time_stamp}:..\]/,$ p" /var/log/asterisk/messages >> asterisk.log
-  exit 1
+  return 1
 }
 opkg_install_asterisk () {
   local ov; ov=$([[ "$BKL_VERBOSE" -eq 0 ]] && echo "-V1" || echo "-V0")
@@ -250,12 +250,12 @@ main () {
   /etc/init.d/asterisk enable
 	time_stamp=$(date +'%b %d %H:%M')
   [[ ${time_stamp:4:1} -eq 0 ]] && time_stamp=$(echo "$time_stamp" | sed "s/0/ /")
-  is_asterisk_enabled || parse_asterisk_log 
+  is_asterisk_enabled || { parse_asterisk_log; exit 1; }
 	#optional checks for pjsip driver, TODO sip
   if [[ "$BKL_DRIVER" == "pjsip" ]]; then
     verify_registration && verify_contacts
     if [[ "$?" -eq 1 ]] ;then
-      parse_asterisk_log
+      parse_asterisk_log || exit 1
     fi
   fi
   echo_ok "Installation completed successfully."
