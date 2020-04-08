@@ -41,11 +41,11 @@ echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text 
 
 
 is_color_opt () {
-	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
-	{ echo_std "$1: invalid color option"; return 1; }; }
+	if [[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]];then return 0
+	else echo_std "$1: invalid color option"; return 1;fi; }
 is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; return 1; }; }
-valid_location(){ [[ -d "$1" ]] && return 0 || 
-	{ echo_std "$1: No such directory"; return 1; }; }
+valid_location(){ if [[ -d "$1" ]]; then return 0 
+	else echo_std "$1: No such directory"; return 1;fi; }
 is_running () { pidof "$1" >/dev/null ||
 	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
 #type can be inconsistent
