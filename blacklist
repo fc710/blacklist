@@ -39,12 +39,7 @@ echo_ok(){ echo "${BKL_APP}: $(green_text [OK]) $*"; }
 echo_error(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(red_text [ERROR]) $1"; }
 echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
 
-#called inside getopts with varname opt
-arg_required() {
-	if [[ -z "$OPTARG" ]]; then 
-		echo_std "No arg for --$opt option"
-	fi
-}
+
 is_color_opt () {
 	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
 	{ echo_std "$1: invalid color option"; exit 1; }; }
@@ -56,7 +51,7 @@ is_running () { pidof "$1" >/dev/null ||
 #type can be inconsistent
 is_installed(){ "$1" -V >/dev/null; }
 install_checks ()  {
-	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 1; }
+	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 127; }
   	[[ ! -f "/etc/config/mmpbxrvsipnet" ]] &&
 	{ echo_error "mmpbxrvsipnet not found!"; exit 1; }
 	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
@@ -114,6 +109,8 @@ database_insert () {
 
 }
 parse_args () {
+	#called inside getopts with varname opt
+	arg_required() { [[ -z "$OPTARG" ]] && echo_std "--$opt: arg required"; }
 	# shellcheck disable=SC2214
 	while getopts ":hsVwm:l:N-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
