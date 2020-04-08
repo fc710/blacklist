@@ -3,16 +3,16 @@
 usage () {
 	cat <<EOM
 Usage:	$BKL_APP [OPTION]... [COMMAND] [arguments...]
-	
+
 Commands:
-		
+
 	install sip|pjsip	Start the install process with the specified driver
 	uninstall		Uninstall and restore the mmpbx config
 	block <number|file> 	Add the number (or numbers in file) to the blacklist
 	whitelist <number|file>	Add the number (or numbers in file) to the whitelist
 	show			Show the blacklisted numbers. (Use -w for the whitelist)
 	export 			Generate the list of numbers in blacklist database. (Use -w for the whitelist)
-		
+
 Options:
 
 	-h, --help		Display this help and exit
@@ -25,9 +25,9 @@ Options:
 	--csv			Print numbers in csv format. (Valid for export command)
 	--keep			Do not remove blacklist folder (Valid for uninstall)
 	-N, --no-interactive	Skip user interaction, includes --suppress-error
-	-m, --min-digits=MIN	Parsing number with at least MIN digits when 
+	-m, --min-digits=MIN	Parsing number with at least MIN digits when
 				importing from file. Default 7.(Valid for block/whitelist command)
-	
+
 EOM
 	exit 0
 }
@@ -44,7 +44,7 @@ is_color_opt () {
 	if [[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]];then return 0
 	else echo_std "$1: invalid color option"; return 1;fi; }
 is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; return 1; }; }
-valid_location(){ if [[ -d "$1" ]]; then return 0 
+valid_location(){ if [[ -d "$1" ]]; then return 0
 	else echo_std "$1: No such directory"; return 1;fi; }
 is_running () { pidof "$1" >/dev/null ||
 	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
@@ -52,10 +52,10 @@ is_running () { pidof "$1" >/dev/null ||
 is_installed(){ "$1" -V >/dev/null; }
 install_checks ()  {
 	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 127; }
-  	[[ ! -f "/etc/config/mmpbxrvsipnet" ]] &&
+	[[ ! -f "/etc/config/mmpbxrvsipnet" ]] &&
 	{ echo_error "mmpbxrvsipnet not found!"; exit 1; }
 	if [[ "$1" == "sip" || "$1" == "pjsip" ]]; then
-		is_installed "/usr/bin/$BKL_APP" && 
+		is_installed "/usr/bin/$BKL_APP" &&
 		{ echo_error "$BKL_APP: already installed. Uninstall with --keep first."
 		exit 1; }
 		if is_installed "asterisk" && [[ "$BKL_INTERACTIVE" -eq 0 ]]; then
@@ -72,11 +72,11 @@ uninstall_export () {
 	read -n 1 -sp "Export the database before continue [y/N] " cnt
 	[[ "$cnt" == "y" || "$cnt" == "Y" ]] &&
 	{ echo "blacklist:"; export_db "blacklist"; echo "whitelist:";
-	export_db "whitelist"; } >> blacklist.export 
+	export_db "whitelist"; } >> blacklist.export
 	return 0
 }
 export_db () {
-	is_running "asterisk" 
+	is_running "asterisk"
 	if [[ "$csv" -eq 1 ]]; then
 		asterisk -x "database show $1" | head -n-1 |
 		cut -f 3 -d '/' | cut -f 1 -d ' '
@@ -90,7 +90,7 @@ database_insert () {
 	local _db=$1
 	local user_input=$2 #number or file
 	local val="block"
-	[[ "${_db}" == "whitelist" ]] && val="ok" 
+	[[ "${_db}" == "whitelist" ]] && val="ok"
 	if [[ -f $user_input ]]; then
 #xargs -i not supported
 #grep -oE "\+[0-9]+" "$1" | xargs --no-run-if-empty -i{} asterisk -x "database put blacklist {} block"
@@ -110,12 +110,12 @@ database_insert () {
 }
 parse_args () {
 	#called inside getopts with varname opt
-	arg_required() { 
+	arg_required() {
 		if [[ -z "$OPTARG" ]]; then
 			echo_std "--$opt: arg required"; return 1
 		else
 			return 0
-		fi 
+		fi
 		}
 			# shellcheck disable=SC2214
 	while getopts ":hsVwm:l:N-:" opt; do
@@ -133,7 +133,7 @@ parse_args () {
 			l | location)		if arg_required && valid_location "${OPTARG}"; then
 									BKL_LOCATION="${OPTARG}"
 								else exit 1; fi;;
-			color) 				if arg_required && is_color_opt "${OPTARG}"; then 
+			color) 				if arg_required && is_color_opt "${OPTARG}"; then
 									BKL_COLOR="${OPTARG}"
 								else exit 1; fi;;
 			csv)				csv=0;;
@@ -143,13 +143,13 @@ parse_args () {
 									min_digits="${OPTARG}"
 								else exit 1; fi;;
 			# bad long option
-			??*)          		echo_std "invalid option: --$opt"; exit 1;;  
+			??*)          		echo_std "invalid option: --$opt"; exit 1;;
 			# bad short opt
-			\?) 				echo_std "invalid option: -$OPTARG"; exit 1;; 
+			\?) 				echo_std "invalid option: -$OPTARG"; exit 1;;
 		esac
 	done
 	shift $((OPTIND - 1))
-	local command="$1"; 
+	local command="$1";
 	[[ -n "$command" ]] && shift
 	case "$command" in
 		install) 	install_checks "$1" && #$1 is either sip or pjsip
@@ -180,7 +180,7 @@ main() {
 	export BKL_COLOR="auto"
 	[[ $# -eq 0 ]] && usage
 	export BKL_VERBOSE=0
-	export BKL_NOCDR=1	
+	export BKL_NOCDR=1
 	export BKL_LOCATION="/usr/share"
 	export BKL_KEEP_FOLDER=1
 	export BKL_INTERACTIVE=0
