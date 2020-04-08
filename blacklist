@@ -35,7 +35,7 @@ green_text(){ [[ "$BKL_COLOR" == "always" ]] && echo -e "\e[32m$*\e[0m" || echo 
 red_text(){ [[ "$BKL_COLOR" != "no" ]] && echo -e "\e[31m$*\e[0m" || echo "$*";}
 yellow_text(){ [[ "$BKL_COLOR" == "always" ]] && echo -e "\e[33m$*\e[0m" || echo "$*"; }
 echo_std(){ echo "${BKL_APP}: $*"; }
-echo_ok(){ echo "${BKL_APP}: $(green_text [OK]) $*"; }
+echo_ok(){ [[ $BKL_VERBOSE -eq 0 ]] && echo "${BKL_APP}: $(green_text [OK]) $*"; }
 echo_error(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(red_text [ERROR]) $1"; }
 echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
 
@@ -101,7 +101,7 @@ database_insert () {
 		#from user assume it's a phone number, but still check input
 		local test; test=$(echo "$user_input" | grep -oE "\+?[0-9]+")
 		if [[ "${test}" != "$user_input" ]];  then
-			echo_std "$user_input: not a valid number. " && exit 1
+			echo_std "$user_input: not a valid number. "; exit 1
 		else
 			asterisk -x "database put ${_db} $test $val"
 		fi
@@ -143,9 +143,9 @@ parse_args () {
 									min_digits="${OPTARG}"
 								else exit 1; fi;;
 			# bad long option
-			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
+			??*)          		echo_std "invalid option: --$opt"; exit 1;;  
 			# bad short opt
-			\?) 				echo_std "invalid option: -$OPTARG" && exit 1;; 
+			\?) 				echo_std "invalid option: -$OPTARG"; exit 1;; 
 		esac
 	done
 	shift $((OPTIND - 1))
@@ -176,7 +176,7 @@ main() {
 	# 0 is true in bash
 	#set -euo pipefail
 	export BKL_APP="blacklist"
-	export BKL_VERSION="4.1.19-alpha"
+	export BKL_VERSION="4.1.24-alpha"
 	export BKL_COLOR="auto"
 	[[ $# -eq 0 ]] && usage
 	export BKL_VERBOSE=0
@@ -189,9 +189,7 @@ main() {
 	local csv=1
 	local db="blacklist"
 	local min_digits=7
-	set -x
 	parse_args "$@"
-	set +x
 	local model; model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
 }

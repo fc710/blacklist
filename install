@@ -10,7 +10,7 @@ green_text(){ [[ "$BKL_COLOR" == "always" ]] && echo -e "\e[32m$*\e[0m" || echo 
 red_text(){ [[ "$BKL_COLOR" != "no" ]] && echo -e "\e[31m$*\e[0m" || echo "$*";}
 yellow_text(){ [[ "$BKL_COLOR" == "always" ]] && echo -e "\e[33m$*\e[0m" || echo "$*"; }
 echo_std(){ echo "${BKL_APP}: $*"; }
-echo_ok(){ echo "${BKL_APP}: $(green_text [OK]) $*"; }
+echo_ok(){ [[ $BKL_VERBOSE -eq 0 ]] && echo "${BKL_APP}: $(green_text [OK]) $*"; }
 echo_error(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(red_text [ERROR]) $1"; }
 echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
 
