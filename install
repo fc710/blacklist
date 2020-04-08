@@ -125,7 +125,7 @@ parse_asterisk_log() {
 }
 opkg_install_asterisk () {
 	local ov; ov=$([[ "$BKL_VERBOSE" -eq 0 ]] && echo "-V1" || echo "-V0")
-	opkg update
+	opkg "$ov" update
 	opkg "$ov" install asterisk"${ast_short}"
 	opkg "$ov" install asterisk"${ast_short}"-app-system
 	opkg "$ov" install asterisk"${ast_short}"-res-agi
@@ -147,7 +147,7 @@ opkg_install_asterisk () {
 	opkg "$ov" install asterisk"${ast_short}"-bridge-simple
 	opkg "$ov" install asterisk"${ast_short}"-bridge-softmix 
 	#Cdr?
-	if [[ -n "$BKL_NOCDR" && "$BKL_NOCDR" -eq 1 ]]; then
+	if [[ "$BKL_NOCDR" -eq 1 ]]; then
 		opkg "$ov" install asterisk"${ast_short}"-cdr
 		opkg "$ov" install asterisk"${ast_short}"-cdr-csv
 	fi

@@ -15,7 +15,7 @@ Bash scripts to install blacklist for technicolor routers (DGA4132)
   chmod u+x blacklist install uninstall
   ./blacklist install pjsip
   ```
-## Usage:
+## Basic Usage:
 
   #### Available commands:
   ```bash
@@ -23,8 +23,13 @@ Bash scripts to install blacklist for technicolor routers (DGA4132)
   ```
   #### Block a number or a file with multiple numbers:
   ```bash
-  blacklist block <number|file>
+  blacklist block +39123456789
+  blacklist block myblock_file
 ```
+  #### Show the current blacklisted numbers:
+  ```bash
+  blacklist show
+  ```
 ## How it works:
   Incoming callers are first checked in the internal database:
   - callers in the blacklist are rejected.
