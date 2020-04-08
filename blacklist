@@ -42,10 +42,10 @@ echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(yellow_text 
 
 is_color_opt () {
 	[[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]] && return 0 ||
-	{ echo_std "$1: invalid color option"; exit 1; }; }
-is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; exit 1; }; }
+	{ echo_std "$1: invalid color option"; return 1; }; }
+is_digit () { [[ $1 -gt 0 ]] || { echo_std "$1: invalid digit"; return 1; }; }
 valid_location(){ [[ -d "$1" ]] && return 0 || 
-	{ echo_std "$1: No such directory"; exit 1; }; }
+	{ echo_std "$1: No such directory"; return 1; }; }
 is_running () { pidof "$1" >/dev/null ||
 	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
 #type can be inconsistent
@@ -112,7 +112,7 @@ parse_args () {
 	#called inside getopts with varname opt
 	arg_required() { 
 		if [[ -z "$OPTARG" ]]; then
-			echo_std "--$opt: arg required"; exit 1
+			echo_std "--$opt: arg required"; return 1
 		else
 			return 0
 		fi 
@@ -130,15 +130,18 @@ parse_args () {
 			V | version) 		echo "$BKL_APP $BKL_VERSION"; exit 0;;
 			no-cdr) 			BKL_NOCDR=0;;
 			w | whitelist) 		db="whitelist";;
-			l | location)		echo "$OPTARG"; arg_required && valid_location "${OPTARG}" &&
-								BKL_LOCATION="${OPTARG}";;
-			color) 				arg_required && is_color_opt "${OPTARG}" && 
-								BKL_COLOR="${OPTARG}";;
+			l | location)		if arg_required && valid_location "${OPTARG}"; then
+									BKL_LOCATION="${OPTARG}"
+								else exit 1; fi;;
+			color) 				if arg_required && is_color_opt "${OPTARG}"; then 
+									BKL_COLOR="${OPTARG}"
+								else exit 1; fi;;
 			csv)				csv=0;;
 			keep)				BKL_KEEP_FOLDER=0;;
 			N | no-interactive)	BKL_INTERACTIVE=1;BKL_VERBOSE=1;;
-			m | min-digits)		arg_required && is_digit "${OPTARG}" &&
-								min_digits="${OPTARG}";;
+			m | min-digits)		if arg_required && is_digit "${OPTARG}"; then
+									min_digits="${OPTARG}"
+								else exit 1; fi;;
 			# bad long option
 			??*)          		echo_std "invalid option: --$opt" && exit 1;;  
 			# bad short opt
