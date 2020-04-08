@@ -110,8 +110,14 @@ database_insert () {
 }
 parse_args () {
 	#called inside getopts with varname opt
-	arg_required() { [[ -z "$OPTARG" ]] && echo_std "--$opt: arg required"; }
-	# shellcheck disable=SC2214
+	arg_required() { 
+		if [[ -z "$OPTARG" ]]; then
+			echo_std "--$opt: arg required"; exit 1
+		else
+			return 0
+		fi 
+		}
+			# shellcheck disable=SC2214
 	while getopts ":hsVwm:l:N-:" opt; do
 		if [[ "$opt" = "-" ]]; then   # long option: reformulate opt and OPTARG
 			opt="${OPTARG%%=*}"       # extract long option name
@@ -124,7 +130,7 @@ parse_args () {
 			V | version) 		echo "$BKL_APP $BKL_VERSION"; exit 0;;
 			no-cdr) 			BKL_NOCDR=0;;
 			w | whitelist) 		db="whitelist";;
-			l | location)		arg_required && valid_location "${OPTARG}" &&
+			l | location)		echo "$OPTARG"; arg_required && valid_location "${OPTARG}" &&
 								BKL_LOCATION="${OPTARG}";;
 			color) 				arg_required && is_color_opt "${OPTARG}" && 
 								BKL_COLOR="${OPTARG}";;
@@ -167,7 +173,7 @@ main() {
 	# 0 is true in bash
 	#set -euo pipefail
 	export BKL_APP="blacklist"
-	export BKL_VERSION="4.1.17-alpha"
+	export BKL_VERSION="4.1.19-alpha"
 	export BKL_COLOR="auto"
 	[[ $# -eq 0 ]] && usage
 	export BKL_VERBOSE=0
@@ -180,7 +186,9 @@ main() {
 	local csv=1
 	local db="blacklist"
 	local min_digits=7
+	set -x
 	parse_args "$@"
+	set +x
 	local model; model="$(uci get env.var.prod_friendly_name)"
 	[[ "$model" != "DGA4132" ]] && echo_warning "This script was tested only on DGA4132!"
 }
