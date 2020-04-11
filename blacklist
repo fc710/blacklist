@@ -39,8 +39,6 @@ echo_ok(){ [[ $BKL_VERBOSE -eq 0 ]] && echo "${BKL_APP}: $(green_text [OK]) $*";
 echo_error(){ [[ $BKL_VERBOSE -eq 0 ]] && >&2 echo "${BKL_APP}: $(red_text [ERROR]) $1"; }
 echo_warning(){ [[ $BKL_VERBOSE -eq 0 ]] &&
     >&2 echo "${BKL_APP}: $(yellow_text [WARNING]) $1"; }
-
-
 is_color_opt () {
 	if [[ "$1" == "no" || "$1" == "always" || "$1" == "auto" ]];then return 0
 	else echo_std "$1: invalid color option"; return 1;fi; }
@@ -51,6 +49,7 @@ is_running () { pidof "$1" >/dev/null ||
 	{ echo_std "$1 isn't running. Aborting operation."; exit 1; }; }
 #type can be inconsistent
 is_installed(){ "$1" -V >/dev/null; }
+
 install_checks ()  {
 	is_installed "uci" || { echo "uci not found. Cannot proceed."; exit 127; }
 	[[ ! -f "/etc/config/mmpbxrvsipnet" ]] &&

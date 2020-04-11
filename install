@@ -125,34 +125,27 @@ parse_asterisk_log() {
 }
 opkg_install_asterisk () {
 	local ov; ov=$([[ "$BKL_VERBOSE" -eq 0 ]] && echo "-V1" || echo "-V0")
+    local ast="asterisk${ast_short}"
+    local driver
+    if [[ "$BKL_DRIVER" == "pjsip" ]]; then driver="pjsip"
+    else driver="chan-sip"
+    fi
 	opkg "$ov" update
-	opkg "$ov" install asterisk"${ast_short}"
-	opkg "$ov" install asterisk"${ast_short}"-app-system
-	opkg "$ov" install asterisk"${ast_short}"-res-agi
-	if [[ "$BKL_DRIVER" == "pjsip" ]]; then
-		opkg "$ov" install asterisk"${ast_short}"-"${BKL_DRIVER}"
-	else
-		opkg "$ov" install asterisk"${ast_short}"-chan-"${BKL_DRIVER}"
-	fi
-	opkg "$ov" install asterisk"${ast_short}"-res-rtp-asterisk
-	opkg "$ov" install asterisk"${ast_short}"-format-pcm
-	#Added
-	opkg "$ov" install asterisk"${ast_short}"-codec-alaw
-	opkg "$ov" install asterisk"${ast_short}"-codec-ulaw
-	opkg "$ov" install asterisk"${ast_short}"-codec-a-mu
-	opkg "$ov" install asterisk"${ast_short}"-func-blacklist
-	opkg "$ov" install asterisk"${ast_short}"-func-db
-	#Add bridge modules too?
-	opkg "$ov" install asterisk"${ast_short}"-bridge-builtin-features
-	opkg "$ov" install asterisk"${ast_short}"-bridge-simple
-	opkg "$ov" install asterisk"${ast_short}"-bridge-softmix 
-	#Cdr?
+	if ! opkg "$ov" install "${ast}" "${ast}-app-system"\
+	"${ast}-res-agi" "${ast}-${driver}" "${ast}-res-rtp-asterisk"\
+	"${ast}-format-pcm" "${ast}-codec-alaw" "${ast}-codec-ulaw"\
+	"${ast}-codec-a-mu" "${ast}-func-blacklist" "${ast}-func-db"\
+	"${ast}-bridge-builtin-features" "${ast}-bridge-simple"\
+	"${ast}-bridge-softmix"; then
+        echo_error "Couldn't install required asterisk packages. Exiting"
+        return 1
+    fi
 	if [[ "$BKL_NOCDR" -eq 1 ]]; then
-		opkg "$ov" install asterisk"${ast_short}"-cdr
-		opkg "$ov" install asterisk"${ast_short}"-cdr-csv
+	    opkg "$ov" install "${ast}-cdr" "${ast}-cdr-csv"
 	fi
 	#temporary
 	opkg "$ov" install bash
+    return 0
 }
 uninstall_asterisk () {
 	echo_warning "Removing Asterisk."
@@ -221,14 +214,14 @@ main () {
 	fi
 	echo_std "Installing Asterisk..."
 	local ast_short="${ast_ver:0:2}"
-	opkg_install_asterisk
+	opkg_install_asterisk || { uninstall_asterisk; exit 1; }
 	local inst_ver; inst_ver=$(asterisk -V | cut -d " " -f 2)
-	if [[ "${inst_ver}" != "${ast_ver}" ]]; then
-		echo_error "Incorrect Asterisk version."
-		uninstall_asterisk "${inst_ver}"
-		exit 1
+	if asterisk -V >/dev/null; then
+		echo_ok "Asterisk ${ast_short} successfully installed"
 	else
-		echo_ok "Asterisk ${ast_short} successfully installed."
+		echo_error "Failed to install Asterisk ${ast_short}."
+        uninstall_asterisk
+        exit 1
 	fi
 	local ast_etc_dir="/etc/asterisk"
 	if [[ ! -d "${ast_etc_dir}" ]]; then
