@@ -1,7 +1,7 @@
 #!/bin/bash
 
 while read VAR ; do
-if [[ -n ${VAR} ]]; then
+if [ -z "$VAR" ]; then
 	break
 fi
 	if [ "${VAR:0:13}" = "agi_callerid:" ]; then
