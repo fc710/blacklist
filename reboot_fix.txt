@@ -1,0 +1,1 @@
+while ! ping -qc 1 www.google.com; do sleep 5; done; service asterisk restart
