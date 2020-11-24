@@ -123,6 +123,17 @@ parse_asterisk_log() {
 	sed -n "/\[${time_stamp}:..\]/,$ p" /var/log/asterisk/messages >> asterisk.log
 	return 1
 }
+fix_reboot_script() {
+	#insert before exit 0 (last line)
+	sed -i "\$i $(cat reboot_fix.txt)" rc.local
+}
+setup_ip_check() {
+	local curr_ip ip_file
+	ip_file=./last_ip
+	curr_ip=$(ip addr show pppoe-wan | awk '/inet/{print $2 }')
+	sed -i "s/IP/${curr_ip}/" $ip_file
+	(crontab -l echo 0 * * * * "$BKL_LOCATION/blacklist/check_ip_change.sh")| crontab -
+}
 opkg_install_asterisk () {
 	local ov; ov=$([[ "$BKL_VERBOSE" -eq 0 ]] && echo "-V1" || echo "-V0")
     local ast="asterisk${ast_short}"
@@ -250,6 +261,8 @@ main () {
 			parse_asterisk_log || exit 1
 		fi
 	fi
+	fix_reboot_script
+	setup_ip_check
 	echo_ok "Installation completed successfully."
 	exit 0
 }
